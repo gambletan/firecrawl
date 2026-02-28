@@ -1,6 +1,7 @@
 plugins {
     `java-library`
     `maven-publish`
+    signing
 }
 
 group = "com.firecrawl"
@@ -44,6 +45,9 @@ publishing {
         create<MavenPublication>("mavenJava") {
             from(components["java"])
 
+            groupId = "com.firecrawl"
+            artifactId = "firecrawl-java"
+
             pom {
                 name.set("Firecrawl Java SDK")
                 description.set("Java SDK for the Firecrawl web scraping API")
@@ -56,6 +60,13 @@ publishing {
                     }
                 }
 
+                developers {
+                    developer {
+                        name.set("Firecrawl")
+                        url.set("https://firecrawl.dev")
+                    }
+                }
+
                 scm {
                     url.set("https://github.com/mendableai/firecrawl")
                     connection.set("scm:git:git://github.com/mendableai/firecrawl.git")
@@ -64,4 +75,30 @@ publishing {
             }
         }
     }
+
+    repositories {
+        maven {
+            name = "OSSRH"
+            val releasesRepoUrl = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
+            val snapshotsRepoUrl = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+            url = if (version.toString().endsWith("SNAPSHOT")) snapshotsRepoUrl else releasesRepoUrl
+            credentials {
+                username = System.getenv("MAVEN_USERNAME") ?: project.findProperty("ossrhUsername") as String? ?: ""
+                password = System.getenv("MAVEN_PASSWORD") ?: project.findProperty("ossrhPassword") as String? ?: ""
+            }
+        }
+    }
+}
+
+signing {
+    val signingKey = System.getenv("GPG_SIGNING_KEY")
+    val signingPassword = System.getenv("GPG_SIGNING_PASSWORD")
+    if (signingKey != null && signingPassword != null) {
+        useInMemoryPgpKeys(signingKey, signingPassword)
+    }
+    sign(publishing.publications["mavenJava"])
+}
+
+tasks.withType<Sign>().configureEach {
+    onlyIf { System.getenv("GPG_SIGNING_KEY") != null }
 }
