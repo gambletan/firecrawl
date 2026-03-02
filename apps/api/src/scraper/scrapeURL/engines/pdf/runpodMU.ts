@@ -4,10 +4,7 @@ import * as marked from "marked";
 import { robustFetch } from "../../lib/fetch";
 import { z } from "zod";
 import path from "node:path";
-import {
-  getPdfResultFromCache,
-  savePdfResultToCache,
-} from "../../../../lib/gcs-pdf-cache";
+import { savePdfResultToCache } from "../../../../lib/gcs-pdf-cache";
 import type { PDFProcessorResult } from "./types";
 
 export async function scrapePDFWithRunPodMU(
@@ -20,23 +17,6 @@ export async function scrapePDFWithRunPodMU(
   meta.logger.debug("Processing PDF document with RunPod MU", {
     tempFilePath,
   });
-
-  if (!maxPages) {
-    try {
-      const cachedResult = await getPdfResultFromCache(base64Content);
-      if (cachedResult) {
-        meta.logger.info("Using cached RunPod MU result for PDF", {
-          tempFilePath,
-        });
-        return cachedResult;
-      }
-    } catch (error) {
-      meta.logger.warn("Error checking PDF cache, proceeding with RunPod MU", {
-        error,
-        tempFilePath,
-      });
-    }
-  }
 
   meta.abort.throwIfAborted();
 

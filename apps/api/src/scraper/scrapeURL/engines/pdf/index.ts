@@ -28,6 +28,10 @@ import { scrapePDFWithParsePDF } from "./pdfParse";
 import { captureExceptionWithZdrCheck } from "../../../../services/sentry";
 import { isPdfBuffer, PDF_SNIFF_WINDOW } from "./pdfUtils";
 import { comparePdfOutputs } from "./shadowComparison";
+import {
+  getPdfResultFromCache,
+  savePdfResultToCache,
+} from "../../../../lib/gcs-pdf-cache";
 
 /** Check if the PDF is eligible for Rust extraction, returning a rejection reason or null. */
 function getIneligibleReason(
@@ -135,6 +139,34 @@ export async function scrapePDF(meta: Meta): Promise<EngineScrapeResult> {
         }
       } else {
         throw new PDFPrefetchFailed();
+      }
+    }
+
+    // Read the file to base64 once for cache lookup and MU fallback.
+    const base64Content = (await readFile(tempFilePath)).toString("base64");
+
+    // Check MU cache first, before any expensive processing.
+    if (!maxPages) {
+      try {
+        const cachedResult = await getPdfResultFromCache(base64Content);
+        if (cachedResult) {
+          meta.logger.info("Using cached MU result for PDF", {
+            tempFilePath,
+            url: meta.rewrittenUrl ?? meta.url,
+          });
+          return {
+            url: response.url ?? meta.rewrittenUrl ?? meta.url,
+            statusCode: response.status,
+            html: cachedResult.html,
+            markdown: cachedResult.markdown,
+            proxyUsed: "basic",
+          };
+        }
+      } catch (error) {
+        meta.logger.warn("Error checking PDF cache, proceeding normally", {
+          error,
+          tempFilePath,
+        });
       }
     }
 
@@ -276,8 +308,6 @@ export async function scrapePDF(meta: Meta): Promise<EngineScrapeResult> {
     // Skipped only when Rust extraction is enabled AND mode is "fast".
     const skipOCR = rustEnabled && mode === "fast";
     if (!result && !skipOCR) {
-      const base64Content = (await readFile(tempFilePath)).toString("base64");
-
       if (
         base64Content.length < MAX_FILE_SIZE &&
         config.RUNPOD_MU_API_KEY &&
@@ -307,10 +337,16 @@ export async function scrapePDF(meta: Meta): Promise<EngineScrapeResult> {
               success: true,
             });
 
-          if (rustMarkdownForShadow && result?.markdown && config.PDF_SHADOW_COMPARISON_ENABLE) {
+          if (
+            rustMarkdownForShadow &&
+            result?.markdown &&
+            config.PDF_SHADOW_COMPARISON_ENABLE
+          ) {
             const shadowRust = rustMarkdownForShadow;
             const shadowMu = result.markdown;
-            const shadowLogger = meta.logger.child({ method: "scrapePDF/shadowComparison" });
+            const shadowLogger = meta.logger.child({
+              method: "scrapePDF/shadowComparison",
+            });
             const isZdr = !!meta.internalOptions.zeroDataRetention;
 
             (async () => {
