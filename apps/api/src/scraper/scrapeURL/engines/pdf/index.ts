@@ -219,10 +219,17 @@ export async function scrapePDF(meta: Meta): Promise<EngineScrapeResult> {
           mode,
         });
 
-        rustMarkdownForShadow =
-          !eligible && pdfResult.markdown && config.PDF_SHADOW_COMPARISON_ENABLE
-            ? pdfResult.markdown
-            : undefined;
+        // Only shadow-compare when Rust had a real chance at extraction.
+        // Scanned/ImageBased PDFs are expected to fail — comparing them
+        // just adds noise to the metrics.
+        const shadowEligible =
+          !eligible &&
+          pdfResult.markdown &&
+          config.PDF_SHADOW_COMPARISON_ENABLE &&
+          pdfResult.pdfType !== "Scanned" &&
+          pdfResult.pdfType !== "ImageBased";
+
+        rustMarkdownForShadow = shadowEligible ? pdfResult.markdown : undefined;
 
         // In fast mode, if the PDF requires OCR, fail immediately with a
         // clear error instead of returning empty content.
@@ -307,10 +314,16 @@ export async function scrapePDF(meta: Meta): Promise<EngineScrapeResult> {
               success: true,
             });
 
-          if (rustMarkdownForShadow && result?.markdown && config.PDF_SHADOW_COMPARISON_ENABLE) {
+          if (
+            rustMarkdownForShadow &&
+            result?.markdown &&
+            config.PDF_SHADOW_COMPARISON_ENABLE
+          ) {
             const shadowRust = rustMarkdownForShadow;
             const shadowMu = result.markdown;
-            const shadowLogger = meta.logger.child({ method: "scrapePDF/shadowComparison" });
+            const shadowLogger = meta.logger.child({
+              method: "scrapePDF/shadowComparison",
+            });
             const isZdr = !!meta.internalOptions.zeroDataRetention;
 
             (async () => {
@@ -320,6 +333,10 @@ export async function scrapePDF(meta: Meta): Promise<EngineScrapeResult> {
                   scrapeId: meta.id,
                   url: isZdr ? undefined : (meta.rewrittenUrl ?? meta.url),
                   pageCount: effectivePageCount,
+                  pdfType: pdfResult.pdfType,
+                  confidence: pdfResult.confidence,
+                  isComplex: pdfResult.isComplex,
+                  ineligibleReason,
                   ...metrics.overall,
                 });
               } catch (error) {
