@@ -78,6 +78,42 @@ pub fn process_pdf_with_page_markers(
   Ok(to_napi_result(result))
 }
 
+/// Extract specific 1-indexed pages from a PDF into a new file.
+/// Used to create a trimmed PDF containing only OCR-needed pages before
+/// sending to MinerU, reducing network transfer.
+#[napi]
+pub fn extract_pdf_pages(
+  input_path: String,
+  page_numbers: Vec<i32>,
+  output_path: String,
+) -> Result<()> {
+  let mut doc = lopdf::Document::load(&input_path).map_err(|e| {
+    Error::new(
+      Status::GenericFailure,
+      format!("Failed to load PDF: {e}"),
+    )
+  })?;
+
+  let total = doc.get_pages().len() as u32;
+  let keep: std::collections::HashSet<u32> = page_numbers
+    .iter()
+    .filter(|&&p| p >= 1 && p <= total as i32)
+    .map(|&p| p as u32)
+    .collect();
+
+  let to_delete: Vec<u32> = (1..=total).filter(|p| !keep.contains(p)).collect();
+  doc.delete_pages(&to_delete);
+
+  doc.save(&output_path).map_err(|e| {
+    Error::new(
+      Status::GenericFailure,
+      format!("Failed to save trimmed PDF: {e}"),
+    )
+  })?;
+
+  Ok(())
+}
+
 /// Fast metadata-only detection: page count, title, type, confidence.
 /// Skips text extraction, markdown generation, and layout analysis.
 #[napi]

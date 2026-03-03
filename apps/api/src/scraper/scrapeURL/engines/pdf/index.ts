@@ -24,6 +24,7 @@ import {
   processPdf,
   detectPdf,
   processPdfWithPageMarkers,
+  extractPdfPages,
 } from "@mendable/firecrawl-rs";
 import { MAX_FILE_SIZE, MILLISECONDS_PER_PAGE } from "./types";
 import type { PDFProcessorResult } from "./types";
@@ -314,66 +315,76 @@ export async function scrapePDF(meta: Meta): Promise<EngineScrapeResult> {
           // 3. Split Rust markdown into per-page map
           const rustPageMap = splitByPageMarkers(rustResult.markdown);
 
-          // 4. Send full PDF + pages param to MinerU (only OCR pages processed)
-          const base64Content = (await readFile(tempFilePath)).toString(
-            "base64",
-          );
+          // 4. Extract only OCR pages into a trimmed PDF (smaller network transfer)
+          const ocrTempFile = tempFilePath + ".ocr.pdf";
+          try {
+            extractPdfPages(tempFilePath, pagesNeedingOcr, ocrTempFile);
+            const ocrBase64 = (await readFile(ocrTempFile)).toString("base64");
 
-          if (
-            base64Content.length < MAX_FILE_SIZE &&
-            config.RUNPOD_MU_API_KEY &&
-            config.RUNPOD_MU_POD_ID
-          ) {
-            const ocrStartedAt = Date.now();
-            const ocrResult = await scrapePDFWithRunPodMU(
-              {
-                ...meta,
-                logger: meta.logger.child({
-                  method: "scrapePDF/pageRouting/scrapePDFWithRunPodMU",
-                }),
-              },
-              tempFilePath,
-              base64Content,
-              maxPages,
-              pagesNeedingOcr.length,
-              pagesNeedingOcr,
-            );
-            const ocrDurationMs = Date.now() - ocrStartedAt;
-            pageRoutingLogger.info("MinerU OCR page extraction completed", {
-              durationMs: ocrDurationMs,
-              markdownLength: ocrResult.markdown?.length ?? 0,
-              ocrPages: pagesNeedingOcr.length,
-            });
-
-            if (ocrResult.markdown) {
-              // 5. Map MinerU result to original OCR page numbers
-              const ocrPageMap = mapOcrResultToPages(
-                ocrResult.markdown,
-                pagesNeedingOcr,
+            if (
+              ocrBase64.length < MAX_FILE_SIZE &&
+              config.RUNPOD_MU_API_KEY &&
+              config.RUNPOD_MU_POD_ID
+            ) {
+              const ocrStartedAt = Date.now();
+              // Send trimmed PDF — MinerU processes all pages it receives
+              const ocrResult = await scrapePDFWithRunPodMU(
+                {
+                  ...meta,
+                  logger: meta.logger.child({
+                    method: "scrapePDF/pageRouting/scrapePDFWithRunPodMU",
+                  }),
+                },
+                ocrTempFile,
+                ocrBase64,
+                undefined,
+                pagesNeedingOcr.length,
               );
-
-              // 6. Merge both maps into final ordered markdown
-              const mergedMarkdown = mergePageMarkdown(
-                rustPageMap,
-                ocrPageMap,
-                effectivePageCount,
-              );
-
-              const html = await marked.parse(mergedMarkdown, { async: true });
-              result = { markdown: mergedMarkdown, html };
-
-              pageRoutingLogger.info("Page-level routing merge completed", {
-                url: meta.rewrittenUrl ?? meta.url,
-                totalPages: effectivePageCount,
-                rustPages: rustPageMap.size,
-                ocrMappedPages: ocrPageMap.size,
-                mergedLength: mergedMarkdown.length,
+              const ocrDurationMs = Date.now() - ocrStartedAt;
+              pageRoutingLogger.info("MinerU OCR page extraction completed", {
+                durationMs: ocrDurationMs,
+                markdownLength: ocrResult.markdown?.length ?? 0,
+                ocrPages: pagesNeedingOcr.length,
               });
+
+              if (ocrResult.markdown) {
+                // 5. Map MinerU result to original OCR page numbers
+                const ocrPageMap = mapOcrResultToPages(
+                  ocrResult.markdown,
+                  pagesNeedingOcr,
+                );
+
+                // 6. Merge both maps into final ordered markdown
+                const mergedMarkdown = mergePageMarkdown(
+                  rustPageMap,
+                  ocrPageMap,
+                  effectivePageCount,
+                );
+
+                const html = await marked.parse(mergedMarkdown, {
+                  async: true,
+                });
+                result = { markdown: mergedMarkdown, html };
+
+                pageRoutingLogger.info("Page-level routing merge completed", {
+                  url: meta.rewrittenUrl ?? meta.url,
+                  totalPages: effectivePageCount,
+                  rustPages: rustPageMap.size,
+                  ocrMappedPages: ocrPageMap.size,
+                  mergedLength: mergedMarkdown.length,
+                });
+              }
+            }
+          } finally {
+            try {
+              await unlink(ocrTempFile);
+            } catch {
+              // ignore cleanup errors
             }
           }
         }
       } catch (error) {
-        // 7. Any failure leaves result = null, falls through to full-PDF MinerU
+        // Any failure leaves result = null, falls through to full-PDF MinerU
         if (
           error instanceof RemoveFeatureError ||
           error instanceof AbortManagerThrownError
