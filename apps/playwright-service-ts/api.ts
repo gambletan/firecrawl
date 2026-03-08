@@ -99,8 +99,8 @@ const initializeBrowser = async () => {
   });
 };
 
-const createContext = async (skipTlsVerification: boolean = false) => {
-  const userAgent = new UserAgent().toString();
+const createContext = async (skipTlsVerification: boolean = false, customUserAgent?: string) => {
+  const userAgent = customUserAgent || new UserAgent().toString();
   const viewport = { width: 1280, height: 800 };
 
   const contextOptions: any = {
@@ -251,12 +251,22 @@ app.post('/scrape', async (req: Request, res: Response) => {
   let requestContext: BrowserContext | null = null;
   let page: Page | null = null;
 
+  // Extract user-agent from headers if present (must be set at context level, not extra headers)
+  let customUserAgent: string | undefined;
+  let cleanedHeaders = headers;
+  if (headers && headers['user-agent']) {
+    customUserAgent = headers['user-agent'];
+    // Remove user-agent from headers as it's already set at context level
+    const { 'user-agent': _, ...rest } = headers;
+    cleanedHeaders = Object.keys(rest).length > 0 ? rest : undefined;
+  }
+
   try {
-    requestContext = await createContext(skip_tls_verification);
+    requestContext = await createContext(skip_tls_verification, customUserAgent);
     page = await requestContext.newPage();
 
-    if (headers) {
-      await page.setExtraHTTPHeaders(headers);
+    if (cleanedHeaders) {
+      await page.setExtraHTTPHeaders(cleanedHeaders);
     }
 
     const result = await scrapePage(page, url, 'load', wait_after_load, timeout, check_selector);
