@@ -26,7 +26,7 @@ import type { PDFProcessorResult } from "./types";
 import { scrapePDFWithRunPodMU } from "./runpodMU";
 import { scrapePDFWithParsePDF } from "./pdfParse";
 import { captureExceptionWithZdrCheck } from "../../../../services/sentry";
-import { isPdfBuffer, PDF_SNIFF_WINDOW } from "./pdfUtils";
+import { isPdfBuffer, isHtmlBuffer, PDF_SNIFF_WINDOW } from "./pdfUtils";
 import { comparePdfOutputs } from "./shadowComparison";
 
 /** Check if the PDF is eligible for Rust extraction, returning a rejection reason or null. */
@@ -72,6 +72,10 @@ export async function scrapePDF(meta: Meta): Promise<EngineScrapeResult> {
 
       if (!isPdfBuffer(file.buffer)) {
         // downloaded content isn't a valid PDF
+        // Check if it's HTML (webpage with embedded PDF) - fall back to other engines
+        if (isHtmlBuffer(file.buffer)) {
+          throw new EngineUnsuccessfulError("pdf");
+        }
         if (meta.pdfPrefetch === undefined) {
           // for non-PDF URLs, this is expected, not anti-bot
           if (!meta.featureFlags.has("pdf")) {
@@ -127,6 +131,10 @@ export async function scrapePDF(meta: Meta): Promise<EngineScrapeResult> {
     }
 
     if (!isPdfBuffer(header.subarray(0, headerBytesRead))) {
+      // Check if it's HTML (webpage with embedded PDF) - fall back to other engines
+      if (isHtmlBuffer(header.subarray(0, headerBytesRead))) {
+        throw new EngineUnsuccessfulError("pdf");
+      }
       if (meta.pdfPrefetch === undefined) {
         if (!meta.featureFlags.has("pdf")) {
           throw new EngineUnsuccessfulError("pdf");

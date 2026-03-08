@@ -53,6 +53,37 @@ export async function extractStatusController(
         data = await getJobFromGCS(agent.id);
       }
 
+      // Get creditsUsed - try to get real-time credits from external service when agent is not yet available
+      let creditsUsed: number | undefined = agent?.credits_cost;
+      if (!agent && config.EXTRACT_V3_BETA_URL) {
+        try {
+          const creditsRequest = await fetch(
+            config.EXTRACT_V3_BETA_URL +
+              "/v2/extract/" +
+              req.params.jobId +
+              "/credits",
+            {
+              headers: {
+                Authorization: `Bearer ${config.AGENT_INTEROP_SECRET}`,
+              },
+            },
+          );
+
+          if (creditsRequest.status === 200) {
+            const creditsData = await creditsRequest.json();
+            creditsUsed = creditsData.creditsUsed ?? 0;
+          }
+        } catch (error) {
+          _logger.warn("Failed to get agent credits", {
+            error,
+            method: "extractStatusController",
+            module: "api/v2",
+            extractId: req.params.jobId,
+          });
+          creditsUsed = 0;
+        }
+      }
+
       return res.status(200).json({
         success: true,
         status: !agent
@@ -66,7 +97,7 @@ export async function extractStatusController(
           new Date(agent?.created_at ?? extractRequest.created_at).getTime() +
             1000 * 60 * 60 * 24,
         ).toISOString(),
-        creditsUsed: agent?.credits_cost,
+        creditsUsed,
       });
     }
   }
