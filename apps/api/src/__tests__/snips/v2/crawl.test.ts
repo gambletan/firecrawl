@@ -396,8 +396,8 @@ describe("Crawl tests", () => {
 
       expect(res.success).toBe(true);
       if (res.success) {
-        expect(res.data.length).toBeGreaterThan(0);
-        for (const page of res.data) {
+        expect(res.data?.length).toBeGreaterThan(0);
+        for (const page of res.data || []) {
           const url = new URL(page.metadata.url ?? page.metadata.sourceURL!);
           const hostname = url.hostname;
 
@@ -453,7 +453,7 @@ describe("Crawl tests", () => {
           expect(res.success).toBe(true);
           if (res.success) {
             // Verify that explicit options were respected
-            for (const page of res.data) {
+            for (const page of res.data || []) {
               const url = new URL(
                 page.metadata.url ?? page.metadata.sourceURL!,
               );
