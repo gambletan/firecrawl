@@ -7,6 +7,7 @@ export interface HttpClientOptions {
   timeoutMs?: number;
   maxRetries?: number;
   backoffFactor?: number; // seconds factor for 0.5, 1, 2...
+  headers?: Record<string, string>;
 }
 
 export class HttpClient {
@@ -27,6 +28,7 @@ export class HttpClient {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${this.apiKey}`,
+        ...(options.headers || {}),
       },
       transitional: { clarifyTimeoutError: true },
     });
