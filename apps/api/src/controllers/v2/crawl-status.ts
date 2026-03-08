@@ -195,12 +195,38 @@ export async function crawlStatusController(
       ? start + parseInt(req.query.limit, 10) - 1
       : undefined;
 
+  // Check for skipData query parameter (feature request #2599)
+  const skipData = req.query.skipData === "true";
+
+  // First check Redis for the crawl - this is faster and may exist even before group is created in DB
+  const sc = await getCrawl(req.params.jobId);
+  
+  // If crawl exists in Redis and team_id matches, return success even if group isn't created yet (race condition)
+  if (sc && sc.team_id === req.auth.team_id) {
+    // Crawl metadata found in Redis, return initial status
+    const zeroDataRetention = sc.zeroDataRetention ?? false;
+    
+    // Get expiry time from Redis
+    const crawlExpiry = await getCrawlExpiry(req.params.jobId);
+    
+    // Return initial status - job is being processed
+    return res.status(200).json({
+      success: true,
+      status: "scraping",
+      completed: 0,
+      total: 0,
+      creditsUsed: 0,
+      expiresAt: crawlExpiry.toISOString(),
+      data: [],
+    });
+  }
+  
+  // Check database for group and job
   const group = await crawlGroup.getGroup(req.params.jobId);
   const groupAnyJob = await scrapeQueue.getGroupAnyJob(
     req.params.jobId,
     req.auth.team_id,
   );
-  const sc = await getCrawl(req.params.jobId);
 
   if (!group || (!groupAnyJob && (!sc || sc.team_id !== req.auth.team_id))) {
     return res.status(404).json({ success: false, error: "Job not found" });
