@@ -202,7 +202,18 @@ export async function crawlStatusController(
   );
   const sc = await getCrawl(req.params.jobId);
 
-  if (!group || (!groupAnyJob && (!sc || sc.team_id !== req.auth.team_id))) {
+  // Check if job exists - allow query if either:
+  // 1. group exists, OR
+  // 2. groupAnyJob exists, OR  
+  // 3. sc exists and belongs to the team (sc may exist even if group/groupAnyJob are still being initialized due to race condition)
+  const jobExists = group || groupAnyJob || (sc && sc.team_id === req.auth.team_id);
+  
+  if (!jobExists) {
+    return res.status(404).json({ success: false, error: "Job not found" });
+  }
+
+  // If sc exists but team_id doesn't match, still return 404 for security
+  if (sc && sc.team_id !== req.auth.team_id) {
     return res.status(404).json({ success: false, error: "Job not found" });
   }
 
