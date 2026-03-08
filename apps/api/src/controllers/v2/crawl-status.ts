@@ -400,7 +400,7 @@ export async function crawlStatusController(
     creditsUsed: outputBulkA.creditsUsed ?? 0,
     expiresAt: (await getCrawlExpiry(req.params.jobId)).toISOString(),
     next: outputBulkB.next,
-    data: outputBulkB.data,
+    ...(!skipData || outputBulkA.status === "completed" ? { data: outputBulkB.data } : {}),
     ...(warning && { warning }),
   });
 }

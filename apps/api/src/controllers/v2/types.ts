@@ -1224,7 +1224,7 @@ export type CrawlStatusResponse =
       creditsUsed: number;
       expiresAt: string;
       next?: string;
-      data: Document[];
+      data?: Document[];
       warning?: string;
     }
   | {
