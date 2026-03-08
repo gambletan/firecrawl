@@ -73,9 +73,9 @@ export async function agentStatusController(
     data = await getJobFromGCS(agent.id);
   }
 
-  // Get creditsUsed - try to get real-time credits from external service when agent is not yet available
+  // Get creditsUsed - try to get real-time credits from external service when agent is not yet available or credits_cost is undefined
   let creditsUsed: number | undefined = agent?.credits_cost;
-  if (!agent && config.EXTRACT_V3_BETA_URL) {
+  if ((!agent || creditsUsed === undefined) && config.EXTRACT_V3_BETA_URL) {
     try {
       const creditsRequest = await fetch(
         config.EXTRACT_V3_BETA_URL +
