@@ -1,4 +1,4 @@
-import { isPdfBuffer } from "../pdfUtils";
+import { isPdfBuffer, isHtmlBuffer } from "../pdfUtils";
 
 describe("isPdfBuffer", () => {
   it("detects a standard PDF-1.4 header", () => {
@@ -82,5 +82,63 @@ describe("isPdfBuffer", () => {
     const padding = Buffer.alloc(1020, 0x41); // 1020 'A's
     const pdf = Buffer.from("%PDF");
     expect(isPdfBuffer(Buffer.concat([padding, pdf]))).toBe(true);
+  });
+});
+
+describe("isHtmlBuffer", () => {
+  it("detects HTML with DOCTYPE", () => {
+    const buf = Buffer.from("<!DOCTYPE html><html><body>Test</body></html>");
+    expect(isHtmlBuffer(buf)).toBe(true);
+  });
+
+  it("detects HTML with lowercase DOCTYPE", () => {
+    const buf = Buffer.from("<!doctype html><html><body>Test</body></html>");
+    expect(isHtmlBuffer(buf)).toBe(true);
+  });
+
+  it("detects HTML with <html> tag", () => {
+    const buf = Buffer.from("<html><body>Test</body></html>");
+    expect(isHtmlBuffer(buf)).toBe(true);
+  });
+
+  it("detects HTML with uppercase <HTML> tag", () => {
+    const buf = Buffer.from("<HTML><body>Test</body></HTML>");
+    expect(isHtmlBuffer(buf)).toBe(true);
+  });
+
+  it("rejects PDF content", () => {
+    const buf = Buffer.from("%PDF-1.4 rest of file...");
+    expect(isHtmlBuffer(buf)).toBe(false);
+  });
+
+  it("rejects plain text", () => {
+    const buf = Buffer.from("Hello, this is just a text file.");
+    expect(isHtmlBuffer(buf)).toBe(false);
+  });
+
+  it("rejects JSON response", () => {
+    const buf = Buffer.from('{"error": "not found"}');
+    expect(isHtmlBuffer(buf)).toBe(false);
+  });
+
+  it("rejects an empty buffer", () => {
+    expect(isHtmlBuffer(Buffer.alloc(0))).toBe(false);
+  });
+
+  it("detects HTML with leading whitespace", () => {
+    const buf = Buffer.from("  \n  <!DOCTYPE html><html><body>Test</body></html>");
+    expect(isHtmlBuffer(buf)).toBe(true);
+  });
+
+  it("detects HTML after 500 bytes of junk", () => {
+    const junk = Buffer.alloc(500, 0x00);
+    const html = Buffer.from("<!DOCTYPE html><html><body>Test</body></html>");
+    expect(isHtmlBuffer(Buffer.concat([junk, html]))).toBe(true);
+  });
+
+  it("rejects HTML that appears after the 1KB window", () => {
+    const padding = Buffer.alloc(1024, 0x20); // 1024 spaces
+    const html = Buffer.from("<!DOCTYPE html><html>");
+    expect(isHtmlBuffer(Buffer.concat([padding, html]))).toBe(false);
   });
 });
