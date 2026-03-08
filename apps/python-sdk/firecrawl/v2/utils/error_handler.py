@@ -65,7 +65,9 @@ def handle_response_error(response: requests.Response, action: str) -> None:
     try:
         response_json = response.json()
         error_message = response_json.get('error', 'No error message provided.')
-        error_details = response_json.get('details', 'No additional error details provided.')
+        # API returns errorId in the response, capture it for better debugging
+        error_id = response_json.get('errorId') or response_json.get('exceptionId')
+        error_details = response_json.get('details', f'Error ID: {error_id}' if error_id else 'No additional error details provided.')
     except:
         # If we can't parse JSON, provide a helpful error message
         try:
