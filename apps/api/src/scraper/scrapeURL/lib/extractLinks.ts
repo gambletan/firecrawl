@@ -28,6 +28,18 @@ function resolveUrlWithBaseHref(
 
   try {
     if (href.startsWith("http://") || href.startsWith("https://")) {
+      // Check for userinfo (e.g., https://user@domain.com or https://user:pass@domain.com)
+      // These are often malformed mailto links or basic auth URLs that should be stripped
+      const urlObj = new URL(href);
+      if (urlObj.username || urlObj.password) {
+        // Strip userinfo but keep the path - this handles cases like https://user@domain.com
+        // which are often misconfigured mailto links
+        // Use pathname to avoid trailing slash issues, but handle empty pathname
+        const path = urlObj.pathname === '/' && !urlObj.search && !urlObj.hash 
+          ? '' 
+          : urlObj.pathname;
+        return urlObj.origin + path + urlObj.search + urlObj.hash;
+      }
       return href;
     } else if (href.startsWith("mailto:")) {
       return href;
