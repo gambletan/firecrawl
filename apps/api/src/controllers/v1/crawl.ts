@@ -18,6 +18,7 @@ import { _addScrapeJobToBullMQ } from "../../services/queue-jobs";
 import { logger as _logger } from "../../lib/logger";
 import { fromV1ScrapeOptions } from "../v2/types";
 import { checkPermissions } from "../../lib/permissions";
+import { getHostname } from "../../lib/host-utils";
 import { crawlGroup } from "../../services/worker/nuq";
 import { logRequest } from "../../services/logging/log_job";
 
@@ -185,6 +186,6 @@ export async function crawlController(
   return res.status(200).json({
     success: true,
     id,
-    url: `${protocol}://${req.get("host")}/v1/crawl/${id}`,
+    url: `${protocol}://${getHostname(req)}/v1/crawl/${id}`,
   });
 }

@@ -22,6 +22,7 @@ import { checkPermissions } from "../../lib/permissions";
 import { buildPromptWithWebsiteStructure } from "../../lib/map-utils";
 import { crawlGroup } from "../../services/worker/nuq";
 import { logRequest } from "../../services/logging/log_job";
+import { getHostname } from "../../lib/host-utils";
 
 export async function crawlController(
   req: RequestWithAuth<{}, CrawlResponse, CrawlRequest>,
@@ -244,7 +245,7 @@ export async function crawlController(
   return res.status(200).json({
     success: true,
     id,
-    url: `${protocol}://${req.get("host")}/v2/crawl/${id}`,
+    url: `${protocol}://${getHostname(req)}/v2/crawl/${id}`,
     ...(req.body.prompt && {
       promptGeneratedOptions: promptGeneratedOptions,
       finalCrawlerOptions: finalCrawlerOptions,

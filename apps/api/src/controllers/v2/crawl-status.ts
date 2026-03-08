@@ -28,6 +28,7 @@ import {
   NuQJobStatus,
   crawlGroup,
 } from "../../services/worker/nuq";
+import { getHostname } from "../../lib/host-utils";
 import { ScrapeJobSingleUrls } from "../../types";
 import { redisEvictConnection } from "../../../src/services/redis";
 import { isBaseDomain, extractBaseDomain } from "../../lib/url-utils";
@@ -294,7 +295,7 @@ export async function crawlStatusController(
     next:
       (outputBulkA.total ?? 0) > start + iteratedOver ||
       outputBulkA.status !== "completed"
-        ? `${req.protocol}://${req.get("host")}/v2/${isBatch ? "batch/scrape" : "crawl"}/${req.params.jobId}?skip=${start + iteratedOver}${req.query.limit ? `&limit=${req.query.limit}` : ""}`
+        ? `${req.protocol}://${getHostname(req)}/v2/${isBatch ? "batch/scrape" : "crawl"}/${req.params.jobId}?skip=${start + iteratedOver}${req.query.limit ? `&limit=${req.query.limit}` : ""}`
         : undefined,
   };
 

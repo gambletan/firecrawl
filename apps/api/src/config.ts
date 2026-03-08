@@ -35,6 +35,7 @@ const configSchema = z.object({
   FIRECRAWL_APP_HOST: z.string().default("firecrawl-app-service"),
   FIRECRAWL_APP_PORT: z.string().default("3002"),
   FIRECRAWL_APP_SCHEME: z.string().default("http"),
+  SELF_HOSTED_DOMAIN: z.string().optional(),
   LOGGING_LEVEL: z.string().optional(),
 
   // Express

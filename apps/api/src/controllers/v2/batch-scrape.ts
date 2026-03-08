@@ -28,6 +28,7 @@ import { isUrlBlocked } from "../../scraper/WebScraper/utils/blocklist";
 import { checkPermissions } from "../../lib/permissions";
 import { crawlGroup } from "../../services/worker/nuq";
 import { logRequest } from "../../services/logging/log_job";
+import { getHostname } from "../../lib/host-utils";
 
 export async function batchScrapeController(
   req: RequestWithAuth<{}, BatchScrapeResponse, BatchScrapeRequest>,
@@ -257,7 +258,7 @@ export async function batchScrapeController(
   return res.status(200).json({
     success: true,
     id,
-    url: `${protocol}://${req.get("host")}/v2/batch/scrape/${id}`,
+    url: `${protocol}://${getHostname(req)}/v2/batch/scrape/${id}`,
     invalidURLs,
   });
 }
