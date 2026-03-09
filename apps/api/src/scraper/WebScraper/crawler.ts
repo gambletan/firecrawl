@@ -304,6 +304,16 @@ export class WebCrawler {
           return false;
         }
 
+        // Filter out URLs with username set (indicates malformed mailto or basic auth)
+        // e.g., https://email@domain.com or https://user:pass@domain.com
+        if (url.username || url.password) {
+          if (config.FIRECRAWL_DEBUG_FILTER_LINKS) {
+            this.logger.debug(`${link} USERNAME/PASSWORD IN URL FAIL`);
+          }
+          denialReasons.set(link, DenialReason.NON_WEB_PROTOCOL);
+          return false;
+        }
+
         const depth = getURLDepth(url.toString());
 
         // Check if the link exceeds the maximum depth allowed
