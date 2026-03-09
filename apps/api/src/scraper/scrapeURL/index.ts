@@ -430,11 +430,17 @@ async function scrapeURLLoopIter(
       throw new AddFeatureError(["stealthProxy"]);
     }
 
-    // NOTE: TODO: what to do when status code is bad is tough...
-    // we cannot just rely on text because error messages can be brief and not hit the limit
-    // should we just use all the fallbacks and pick the one with the longest text? - mogery
-    if (isLongEnough || !isGoodStatusCode) {
-      meta.logger.info("Scrape via " + engine + " deemed successful.", {
+    // If we got a good status code (200-299 or 304), treat as success even if content is empty.
+    // Empty pages are valid - they're not errors. Waterfalling to another engine won't help
+    // since they'll likely return the same empty content.
+    if (isGoodStatusCode) {
+      meta.logger.info("Scrape via " + engine + " deemed successful (status code OK, content may be empty).", {
+        factors: { isLongEnough, isGoodStatusCode, hasNoPageError },
+      });
+      return engineResult;
+    } else if (isLongEnough) {
+      // If status code is not OK but we have content, still consider it a partial success
+      meta.logger.info("Scrape via " + engine + " deemed successful (has content despite non-OK status).", {
         factors: { isLongEnough, isGoodStatusCode, hasNoPageError },
       });
       return engineResult;

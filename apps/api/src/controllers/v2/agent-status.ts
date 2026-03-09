@@ -7,6 +7,7 @@ import {
 import { logger as _logger, logger } from "../../lib/logger";
 import { getJobFromGCS } from "../../lib/gcs-jobs";
 import { config } from "../../config";
+import { supabase_service } from "../../services/supabase";
 
 export async function agentStatusController(
   req: RequestWithAuth<{ jobId: string }, AgentStatusResponse, any>,
@@ -73,6 +74,32 @@ export async function agentStatusController(
     data = await getJobFromGCS(agent.id);
   }
 
+  // Get real-time credits using RPC (same as crawl status)
+  let creditsUsed: number | undefined = agent?.credits_cost ?? 0;
+  if (config.USE_DB_AUTHENTICATION) {
+    try {
+      const creditsRpc = await supabase_service.rpc(
+        "credits_billed_by_crawl_id_2",
+        {
+          i_crawl_id: req.params.jobId,
+        },
+        { get: true },
+      );
+      const rpcCredits = creditsRpc?.data?.[0]?.credits_billed;
+      if (rpcCredits !== null && rpcCredits !== undefined) {
+        creditsUsed = rpcCredits;
+      }
+    } catch (error) {
+      logger.warn("Failed to get real-time credits for agent", {
+        error,
+        jobId: req.params.jobId,
+        method: "agentStatusController",
+        module: "api/v2",
+      });
+      // Fall back to agent?.credits_cost
+    }
+  }
+
   return res.status(200).json({
     success: true,
     status: !agent
@@ -87,6 +114,6 @@ export async function agentStatusController(
       new Date(agent?.created_at ?? agentRequest.created_at).getTime() +
         1000 * 60 * 60 * 24,
     ).toISOString(),
-    creditsUsed: agent?.credits_cost,
+    creditsUsed,
   });
 }
