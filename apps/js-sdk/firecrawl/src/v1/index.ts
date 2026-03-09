@@ -137,6 +137,17 @@ export interface CrawlScrapeOptions {
   parsePDF?: boolean;
 }
 
+/**
+ * Configuration for webhook notifications.
+ * Defines the URL, headers, metadata, and events for webhook callbacks.
+ */
+export interface WebhookConfig {
+  url: string;
+  headers?: Record<string, string>;
+  metadata?: Record<string, string>;
+  events?: Array<'completed' | 'failed' | 'page' | 'started'>;
+}
+
 export type Action = {
   type: "wait",
   milliseconds?: number,
@@ -352,6 +363,7 @@ export interface ExtractParams<LLMSchema extends zt.ZodSchema = any> {
   showSources?: boolean;
   scrapeOptions?: CrawlScrapeOptions;
   agent?: AgentOptionsExtract;
+  webhook?: string | WebhookConfig | null;
 }
 
 /**
