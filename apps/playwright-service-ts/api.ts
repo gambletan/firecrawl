@@ -252,7 +252,7 @@ app.post('/scrape', async (req: Request, res: Response) => {
   let page: Page | null = null;
 
   // Extract user-agent from headers if present (case-insensitive)
-  const customUserAgent = headers?.['user-agent'] || headers?.['User-Agent'];
+  const customUserAgent = Object.entries(headers || {}).find(([k]) => k.toLowerCase() === 'user-agent')?.[1];
   // Remove user-agent from headers to avoid conflict with context-level user-agent
   const headersWithoutUserAgent = headers ? Object.fromEntries(
     Object.entries(headers).filter(([key]) => key.toLowerCase() !== 'user-agent')
