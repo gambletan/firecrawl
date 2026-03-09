@@ -286,6 +286,18 @@ export class WebCrawler {
         }
         const path = url.pathname;
 
+        // Check for malformed URLs that look like email addresses (e.g., https://email@domain.com)
+        // These are often malformed mailto links that were missing the mailto: prefix.
+        // We detect them by checking if there's a username but no password - legitimate
+        // basic auth URLs (e.g., https://user:pass@host.com) have both username AND password.
+        if (url.username && !url.password) {
+          if (config.FIRECRAWL_DEBUG_FILTER_LINKS) {
+            this.logger.debug(`${link} MALFORMED URL (email-like username without password) FAIL`);
+          }
+          denialReasons.set(link, DenialReason.URL_PARSE_ERROR);
+          return false;
+        }
+
         const urlStr = url.toString();
         const nonWebProtocols = [
           "mailto:",
