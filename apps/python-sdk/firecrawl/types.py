@@ -103,7 +103,6 @@ __all__ = [
     # Crawl types
     'CrawlRequest',
     'CrawlJob',
-    'CrawlJobData',
     'CrawlResponse',
     'CrawlParamsRequest',
     'CrawlParamsData',
