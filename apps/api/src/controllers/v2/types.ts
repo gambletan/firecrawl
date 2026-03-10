@@ -1218,7 +1218,7 @@ export type CrawlStatusResponse =
   | ErrorResponse
   | {
       success: true;
-      status: "scraping" | "completed" | "failed" | "cancelled";
+      status: "scraping" | "completed" | "failed" | "cancelled" | "pending";
       completed: number;
       total: number;
       creditsUsed: number;

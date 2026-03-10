@@ -203,6 +203,22 @@ export async function crawlStatusController(
   );
   const sc = await getCrawl(req.params.jobId);
 
+  // If we have a valid stored crawl with matching team_id, return a pending status
+  // even if the group hasn't been created yet (can happen during rapid status checks
+  // right after crawl creation due to Redis timing)
+  if (sc && sc.team_id === req.auth.team_id && !group && !groupAnyJob) {
+    return res.status(200).json({
+      success: true,
+      status: "pending",
+      completed: 0,
+      total: 0,
+      creditsUsed: 0,
+      expiresAt: (await getCrawlExpiry(req.params.jobId)).toISOString(),
+      next: undefined,
+      data: [],
+    });
+  }
+
   if (!group || (!groupAnyJob && (!sc || sc.team_id !== req.auth.team_id))) {
     return res.status(404).json({ success: false, error: "Job not found" });
   }
@@ -230,7 +246,7 @@ export async function crawlStatusController(
   const crawlError = await getCrawlError(req.params.jobId);
 
   let outputBulkA: {
-    status?: "completed" | "scraping" | "cancelled" | "failed";
+    status?: "completed" | "scraping" | "cancelled" | "failed" | "pending";
     completed?: number;
     total?: number;
     creditsUsed?: number;

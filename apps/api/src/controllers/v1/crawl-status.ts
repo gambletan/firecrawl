@@ -210,7 +210,7 @@ export async function crawlStatusController(
   const crawlError = await getCrawlError(req.params.jobId);
 
   let outputBulkA: {
-    status?: "completed" | "scraping" | "cancelled" | "failed";
+    status?: "completed" | "scraping" | "cancelled" | "failed" | "pending";
     completed?: number;
     total?: number;
     creditsUsed?: number;
