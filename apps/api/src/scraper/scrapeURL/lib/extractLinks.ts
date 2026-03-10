@@ -28,6 +28,21 @@ function resolveUrlWithBaseHref(
 
   try {
     if (href.startsWith("http://") || href.startsWith("https://")) {
+      // Check for URLs with userinfo (credentials/email in hostname)
+      // e.g., https://email@domain.com or https://user:pass@domain.com
+      // Modern browsers strip these from URLs, so we should filter them out
+      try {
+        const url = new URL(href);
+        // If URL has username or password, it's likely a malformed URL
+        // (email link or basic auth that was incorrectly formatted)
+        if (url.username || url.password) {
+          logger.debug(`Filtering out URL with userinfo (likely malformed): ${href}`);
+          return "";
+        }
+      } catch {
+        // Invalid URL, return empty
+        return "";
+      }
       return href;
     } else if (href.startsWith("mailto:")) {
       return href;
