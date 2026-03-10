@@ -430,10 +430,18 @@ async function scrapeURLLoopIter(
       throw new AddFeatureError(["stealthProxy"]);
     }
 
-    // NOTE: TODO: what to do when status code is bad is tough...
-    // we cannot just rely on text because error messages can be brief and not hit the limit
-    // should we just use all the fallbacks and pick the one with the longest text? - mogery
-    if (isLongEnough || !isGoodStatusCode) {
+    // If the status code is good (2xx), return the result even if content is empty.
+    // This distinguishes between actual engine failures and empty pages.
+    if (isGoodStatusCode) {
+      meta.logger.info("Scrape via " + engine + " returned content with status " + engineResult.statusCode + ".", {
+        factors: { isLongEnough, isGoodStatusCode, hasNoPageError },
+        length: engineResult.html?.trim().length ?? 0,
+      });
+      return engineResult;
+    }
+
+    // For non-2xx status codes, require non-empty content
+    if (isLongEnough) {
       meta.logger.info("Scrape via " + engine + " deemed successful.", {
         factors: { isLongEnough, isGoodStatusCode, hasNoPageError },
       });
