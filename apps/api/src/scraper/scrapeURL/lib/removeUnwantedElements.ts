@@ -173,7 +173,7 @@ export const htmlTransform = async (
     });
   }
 
-  // always return biggest image
+  // always return biggest image, but keep srcset for responsive images
   soup("img[srcset]").each((_, el) => {
     const sizes = el.attribs.srcset.split(",").map(x => {
       const tok = x.trim().split(" ");
@@ -194,6 +194,7 @@ export const htmlTransform = async (
 
     sizes.sort((a, b) => b.size - a.size);
 
+    // Update src to biggest image, but keep srcset intact for responsive images
     el.attribs.src = sizes[0]?.url;
   });
 
