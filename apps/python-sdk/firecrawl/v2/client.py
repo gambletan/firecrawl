@@ -43,11 +43,10 @@ from .types import (
 from .utils.http_client import HttpClient
 from .utils.error_handler import FirecrawlError
 from .methods import scrape as scrape_module
-from .methods import crawl as crawl_module  
+from .methods import crawl as crawl_module
 from .methods import batch as batch_module
 from .methods import search as search_module
 from .methods import map as map_module
-from .methods import batch as batch_methods
 from .methods import usage as usage_methods
 from .methods import extract as extract_module
 from .methods import agent as agent_module
@@ -833,7 +832,7 @@ class FirecrawlClient:
         Returns:
             Errors and robots-blocked URLs for the job
         """
-        return batch_methods.get_batch_scrape_errors(self.http_client, job_id)
+        return batch_module.get_batch_scrape_errors(self.http_client, job_id)
 
     def get_extract_status(self, job_id: str):
         """Get the current status (and data if completed) of an extract job.
