@@ -42,6 +42,28 @@ import { scheduleABComparison } from "../../../../services/ab-test-comparison";
 /** Default wait (ms) before running the branding script when user did not set waitFor. Lets the page settle so DOM/images are ready and reduces JS errors. */
 const BRANDING_DEFAULT_WAIT_MS = 2000;
 
+/** Default wait (ms) after click actions to allow dynamic content to render */
+const CLICK_ACTION_DEFAULT_WAIT_MS = 500;
+
+/**
+ * Insert wait actions after click actions to allow dynamic content to render.
+ * This fixes issues with dropdowns and other dynamic UI elements where
+ * the next action fails because the DOM hasn't updated yet.
+ */
+function insertWaitsAfterClicks(actions: InternalAction[]): InternalAction[] {
+  const result: InternalAction[] = [];
+  for (const action of actions) {
+    result.push(action);
+    if (action.type === "click") {
+      result.push({
+        type: "wait",
+        milliseconds: CLICK_ACTION_DEFAULT_WAIT_MS,
+      });
+    }
+  }
+  return result;
+}
+
 // This function does not take `Meta` on purpose. It may not access any
 // meta values to construct the request -- that must be done by the
 // `scrapeURLWithFireEngine*` functions.
@@ -281,11 +303,14 @@ export async function scrapeURLWithFireEngineChromeCDP(
           ]
         : []),
 
-      // Include specified actions
-      ...(meta.options.actions ?? []).map(action => {
-        const { metadata: _, ...rest } = action as InternalAction;
-        return rest;
-      }),
+      // Include specified actions, with automatic waits after clicks to allow
+      // dynamic content (dropdowns, modals, etc.) to render
+      ...insertWaitsAfterClicks(
+        (meta.options.actions ?? []).map(action => {
+          const { metadata: _, ...rest } = action as InternalAction;
+          return rest;
+        }),
+      ),
 
       // Transform screenshot format into an action (unsupported by chrome-cdp)
       ...(hasFormatOfType(meta.options.formats, "screenshot")
