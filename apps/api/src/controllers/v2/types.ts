@@ -1166,7 +1166,7 @@ export type AgentStatusResponse =
       data?: any;
       model?: "spark-1-pro" | "spark-1-mini";
       expiresAt: string;
-      creditsUsed?: number;
+      creditsUsed: number;
     };
 
 export type AgentCancelResponse =
