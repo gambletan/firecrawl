@@ -257,7 +257,12 @@ app.post('/scrape', async (req: Request, res: Response) => {
     page = await requestContext.newPage();
 
     if (headers) {
-      await page.setExtraHTTPHeaders(headers);
+      // Filter out user-agent from headers since it's already set at context level
+      // and Playwright ignores user-agent in setExtraHTTPHeaders when set at context level
+      const filteredHeaders = { ...headers };
+      delete filteredHeaders['user-agent'];
+      delete filteredHeaders['User-Agent'];
+      await page.setExtraHTTPHeaders(filteredHeaders);
     }
 
     const result = await scrapePage(page, url, 'load', wait_after_load, timeout, check_selector);
