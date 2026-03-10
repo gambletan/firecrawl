@@ -253,13 +253,17 @@ app.post('/scrape', async (req: Request, res: Response) => {
 
   try {
     // Extract user-agent from headers if provided, to set at context level
-    const customUserAgent = headers?.['user-agent'];
+    // HTTP header names are case-insensitive, so we need to find user-agent regardless of case
+    const customUserAgent = headers 
+      ? Object.entries(headers).find(([key]) => key.toLowerCase() === 'user-agent')?.[1]
+      : undefined;
     
     requestContext = await createContext(skip_tls_verification, customUserAgent);
     page = await requestContext.newPage();
 
     // Remove user-agent from headers as it's already set at context level
     // Playwright ignores user-agent in setExtraHTTPHeaders when it's set at context level
+    // Use case-insensitive matching to handle all variations like 'USER-AGENT', 'User-Agent', etc.
     const headersWithoutUserAgent = headers ? Object.fromEntries(
       Object.entries(headers).filter(([key]) => key.toLowerCase() !== 'user-agent')
     ) : null;
