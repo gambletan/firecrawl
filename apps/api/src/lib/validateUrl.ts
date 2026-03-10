@@ -19,6 +19,24 @@ const getURLobj = (s: string) => {
   return { error, urlObj };
 };
 
+/**
+ * Check if a URL contains malformed credentials (username/password in hostname)
+ * This catches cases like:
+ * - https://user:pass@example.com (basic auth)
+ * - https://email@example.com (malformed mailto link)
+ * These are invalid/obsolete URL patterns that should be filtered out
+ */
+export function hasMalformedCredentials(url: string): boolean {
+  try {
+    const urlObj = new URL(url);
+    // If username is set, it means the URL has credentials in the hostname
+    // This catches both basic auth (user:pass@) and malformed mailto (email@)
+    return !!urlObj.username;
+  } catch {
+    return false;
+  }
+}
+
 export const checkAndUpdateURL = (url: string) => {
   if (!protocolIncluded(url)) {
     url = `http://${url}`;
@@ -165,6 +183,11 @@ export function removeDuplicateUrls(urls: string[]): string[] {
   const urlMap = new Map<string, string>();
 
   for (const url of urls) {
+    // Filter out URLs with malformed credentials (e.g., https://user:pass@domain.com or https://email@domain.com)
+    if (hasMalformedCredentials(url)) {
+      continue;
+    }
+
     const parsedUrl = new URL(url);
     const protocol = parsedUrl.protocol;
     const hostname = parsedUrl.hostname.replace(/^www\./, "");

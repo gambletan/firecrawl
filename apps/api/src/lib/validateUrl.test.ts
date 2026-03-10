@@ -1,4 +1,8 @@
-import { isSameDomain, removeDuplicateUrls } from "./validateUrl";
+import {
+  isSameDomain,
+  removeDuplicateUrls,
+  hasMalformedCredentials,
+} from "./validateUrl";
 import { isSameSubdomain } from "./validateUrl";
 
 describe("isSameDomain", () => {
@@ -167,5 +171,55 @@ describe("removeDuplicateUrls", () => {
     const urls = ["https://example.com", "https://example.com/"];
     const result = removeDuplicateUrls(urls);
     expect(result).toEqual(["https://example.com"]);
+  });
+
+  it("should filter out URLs with malformed credentials (basic auth)", () => {
+    const urls = [
+      "https://example.com",
+      "https://user:pass@example.com",
+      "https://example.com/page",
+    ];
+    const result = removeDuplicateUrls(urls);
+    expect(result).toEqual(["https://example.com", "https://example.com/page"]);
+  });
+
+  it("should filter out URLs with malformed credentials (email-like)", () => {
+    const urls = [
+      "https://example.com",
+      "https://email@example.com",
+      "https://example.com/about",
+    ];
+    const result = removeDuplicateUrls(urls);
+    expect(result).toEqual([
+      "https://example.com",
+      "https://example.com/about",
+    ]);
+  });
+});
+
+describe("hasMalformedCredentials", () => {
+  it("should return false for normal URLs", () => {
+    expect(hasMalformedCredentials("https://example.com")).toBe(false);
+    expect(hasMalformedCredentials("https://example.com/page")).toBe(false);
+    expect(hasMalformedCredentials("http://example.com/path?query=value")).toBe(
+      false,
+    );
+  });
+
+  it("should return true for URLs with basic auth", () => {
+    expect(hasMalformedCredentials("https://user:pass@example.com")).toBe(true);
+    expect(hasMalformedCredentials("http://admin:secret@example.com")).toBe(
+      true,
+    );
+  });
+
+  it("should return true for malformed mailto URLs", () => {
+    expect(hasMalformedCredentials("https://email@example.com")).toBe(true);
+    expect(hasMalformedCredentials("https://contact@example.com")).toBe(true);
+  });
+
+  it("should return false for invalid URLs", () => {
+    expect(hasMalformedCredentials("invalid-url")).toBe(false);
+    expect(hasMalformedCredentials("")).toBe(false);
   });
 });
