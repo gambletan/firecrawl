@@ -74,4 +74,48 @@ describe("agentStatusController", () => {
       expect.objectContaining({ model: "spark-1-pro" }),
     );
   });
+
+  it("returns creditsUsed: 0 when agent is still processing (no agent record)", async () => {
+    (supabaseGetAgentRequestByIdDirect as jest.Mock).mockResolvedValue({
+      team_id: "team-123",
+      created_at: "2025-01-01T00:00:00Z",
+    });
+    (supabaseGetAgentByIdDirect as jest.Mock).mockResolvedValue(null);
+
+    const res = buildRes();
+    await agentStatusController(baseReq, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ 
+        status: "processing",
+        creditsUsed: 0 
+      }),
+    );
+  });
+
+  it("returns creditsUsed from agent when agent exists", async () => {
+    (supabaseGetAgentRequestByIdDirect as jest.Mock).mockResolvedValue({
+      team_id: "team-123",
+      created_at: "2025-01-01T00:00:00Z",
+    });
+    (supabaseGetAgentByIdDirect as jest.Mock).mockResolvedValue({
+      id: "job-123",
+      is_successful: true,
+      options: { model: "spark-1-pro" },
+      credits_cost: 150,
+      created_at: "2025-01-01T00:00:00Z",
+    });
+    (getJobFromGCS as jest.Mock).mockResolvedValue({ result: "ok" });
+
+    const res = buildRes();
+    await agentStatusController(baseReq, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ 
+        creditsUsed: 150 
+      }),
+    );
+  });
 });
