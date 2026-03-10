@@ -8,6 +8,7 @@ import {
 } from "./types";
 import {
   getCrawl,
+  getCrawlError,
   getCrawlExpiry,
   getDoneJobsOrderedLength,
   isCrawlKickoffFinished,
@@ -175,12 +176,38 @@ export async function crawlStatusController(
       ? start + parseInt(req.query.limit, 10) - 1
       : undefined;
 
+  // Check for skipData query parameter (feature request #2599)
+  const skipData = req.query.skipData === "true";
+
+  // First check Redis for the crawl - this is faster and may exist even before group is created in DB
+  const sc = await getCrawl(req.params.jobId);
+  
+  // If crawl exists in Redis and team_id matches, return success even if group isn't created yet (race condition)
+  if (sc && sc.team_id === req.auth.team_id) {
+    // Crawl metadata found in Redis, return initial status
+    const zeroDataRetention = sc.zeroDataRetention ?? false;
+    
+    // Get expiry time from Redis
+    const crawlExpiry = await getCrawlExpiry(req.params.jobId);
+    
+    // Return initial status - job is being processed
+    return res.status(200).json({
+      success: true,
+      status: "scraping",
+      completed: 0,
+      total: 0,
+      creditsUsed: 0,
+      expiresAt: crawlExpiry.toISOString(),
+      data: [],
+    });
+  }
+  
+  // Check database for group and job
   const group = await crawlGroup.getGroup(req.params.jobId);
   const groupAnyJob = await scrapeQueue.getGroupAnyJob(
     req.params.jobId,
     req.auth.team_id,
   );
-  const sc = await getCrawl(req.params.jobId);
 
   if (!group || (!groupAnyJob && (!sc || sc.team_id !== req.auth.team_id))) {
     return res.status(404).json({ success: false, error: "Job not found" });
@@ -205,8 +232,11 @@ export async function crawlStatusController(
       )
     : null;
 
+  // check if the crawl failed during kickoff (e.g. queue full)
+  const crawlError = await getCrawlError(req.params.jobId);
+
   let outputBulkA: {
-    status?: "completed" | "scraping" | "cancelled";
+    status?: "completed" | "scraping" | "cancelled" | "failed";
     completed?: number;
     total?: number;
     creditsUsed?: number;
@@ -220,6 +250,29 @@ export async function crawlStatusController(
       (numericStats.backlog ?? 0),
     creditsUsed: creditsRpc?.data?.[0]?.credits_billed ?? -1,
   };
+
+  // if the crawl has a stored error and no jobs were ever created, mark as failed
+  if (
+    crawlError &&
+    outputBulkA.total === 0 &&
+    outputBulkA.status === "completed"
+  ) {
+    outputBulkA.status = "failed";
+  }
+
+  // if the crawl failed during kickoff, return immediately without fetching/processing jobs (there are none)
+  if (outputBulkA.status === "failed" && crawlError) {
+    return res.status(200).json({
+      success: false,
+      error: crawlError,
+      status: "failed",
+      completed: 0,
+      total: 0,
+      creditsUsed: outputBulkA.creditsUsed ?? 0,
+      expiresAt: (await getCrawlExpiry(req.params.jobId)).toISOString(),
+      data: [],
+    });
+  }
 
   let outputBulkB: {
     data: Document[];
@@ -278,7 +331,8 @@ export async function crawlStatusController(
         : undefined,
   };
 
-  return res.status(200).json({
+  // Build response - conditionally include data based on skipData parameter (#2599)
+  const response: any = {
     success: true,
     status: outputBulkA.status ?? "scraping",
     completed: outputBulkA.completed ?? 0,
@@ -286,6 +340,12 @@ export async function crawlStatusController(
     creditsUsed: outputBulkA.creditsUsed ?? 0,
     expiresAt: (await getCrawlExpiry(req.params.jobId)).toISOString(),
     next: outputBulkB.next,
-    data: outputBulkB.data,
-  });
+  };
+
+  // Only include data if skipData is not true or status is completed
+  if (!skipData || outputBulkA.status === "completed") {
+    response.data = outputBulkB.data;
+  }
+
+  return res.status(200).json(response);
 }
