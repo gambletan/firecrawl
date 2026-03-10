@@ -28,6 +28,18 @@ function resolveUrlWithBaseHref(
 
   try {
     if (href.startsWith("http://") || href.startsWith("https://")) {
+      // Filter out URLs with @ in the hostname (basic auth or malformed mailto)
+      // Examples: https://user@domain.com, https://user:pass@domain.com
+      // These are often malformed mailto links or credentials in URL
+      const url = new URL(href);
+      if (url.username || url.password) {
+        return "";
+      }
+      // Check if hostname looks like an email address (contains @ but no valid path)
+      // This catches malformed mailto like href="email@domain.com"
+      if (url.hostname.includes("@") && !url.protocol.startsWith("mailto")) {
+        return "";
+      }
       return href;
     } else if (href.startsWith("mailto:")) {
       return href;
