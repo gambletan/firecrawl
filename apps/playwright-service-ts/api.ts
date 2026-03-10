@@ -100,7 +100,7 @@ const initializeBrowser = async () => {
 };
 
 const createContext = async (skipTlsVerification: boolean = false, customUserAgent?: string) => {
-  const userAgent = customUserAgent || new UserAgent().toString();
+  const userAgent = customUserAgent !== undefined ? customUserAgent : new UserAgent().toString();
   const viewport = { width: 1280, height: 800 };
 
   const contextOptions: any = {
