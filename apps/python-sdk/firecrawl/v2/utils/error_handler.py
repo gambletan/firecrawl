@@ -66,7 +66,7 @@ def handle_response_error(response: requests.Response, action: str) -> None:
         response_json = response.json()
         error_message = response_json.get('error', 'No error message provided.')
         error_details = response_json.get('details', 'No additional error details provided.')
-    except:
+    except (ValueError, KeyError):
         # If we can't parse JSON, provide a helpful error message
         try:
             response_text = response.text[:500]  # Limit to first 500 chars
@@ -76,7 +76,7 @@ def handle_response_error(response: requests.Response, action: str) -> None:
             else:
                 error_message = f"Server returned empty response with status {response.status_code}"
                 error_details = "No additional details available"
-        except:
+        except (ValueError, KeyError):
             error_message = f"Server returned unreadable response with status {response.status_code}"
             error_details = "No additional details available"
     
