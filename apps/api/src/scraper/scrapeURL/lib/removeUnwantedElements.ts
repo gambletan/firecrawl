@@ -173,9 +173,10 @@ export const htmlTransform = async (
     });
   }
 
-  // always return biggest image
+  // always return biggest image but preserve srcset attribute
   soup("img[srcset]").each((_, el) => {
-    const sizes = el.attribs.srcset.split(",").map(x => {
+    const srcset = el.attribs.srcset;
+    const sizes = srcset.split(",").map(x => {
       const tok = x.trim().split(" ");
       return {
         url: tok[0],
@@ -195,6 +196,8 @@ export const htmlTransform = async (
     sizes.sort((a, b) => b.size - a.size);
 
     el.attribs.src = sizes[0]?.url;
+    // Preserve the srcset attribute
+    el.attribs.srcset = srcset;
   });
 
   // absolute links
