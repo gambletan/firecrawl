@@ -102,14 +102,20 @@ const initializeBrowser = async () => {
 const createContext = async (skipTlsVerification: boolean = false, headers?: { [key: string]: string }) => {
   // Extract user-agent from headers if provided, otherwise use default
   const customUserAgent = headers?.['user-agent'];
-  const userAgent = customUserAgent || new UserAgent().toString();
+  // Only set userAgent at context level if no custom user-agent is provided
+  // This allows setExtraHTTPHeaders to properly override user-agent when provided
+  const userAgent = customUserAgent ? undefined : new UserAgent().toString();
   const viewport = { width: 1280, height: 800 };
 
   const contextOptions: any = {
-    userAgent,
     viewport,
     ignoreHTTPSErrors: skipTlsVerification,
   };
+
+  // Only set userAgent if we have a default one (not custom)
+  if (userAgent) {
+    contextOptions.userAgent = userAgent;
+  }
 
   if (PROXY_SERVER && PROXY_USERNAME && PROXY_PASSWORD) {
     contextOptions.proxy = {
