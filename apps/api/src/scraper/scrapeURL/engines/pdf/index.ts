@@ -72,12 +72,14 @@ export async function scrapePDF(meta: Meta): Promise<EngineScrapeResult> {
 
       if (!isPdfBuffer(file.buffer)) {
         // downloaded content isn't a valid PDF
+        // This can happen when a URL ends with .pdf but the server returns HTML
+        // (e.g., a webpage with an embedded PDF viewer)
+        // Remove the PDF flag and let the scraper retry as HTML
         if (meta.pdfPrefetch === undefined) {
-          // for non-PDF URLs, this is expected, not anti-bot
           if (!meta.featureFlags.has("pdf")) {
             throw new EngineUnsuccessfulError("pdf");
           } else {
-            throw new PDFAntibotError();
+            throw new RemoveFeatureError(["pdf"]);
           }
         } else {
           throw new PDFPrefetchFailed();
@@ -127,11 +129,15 @@ export async function scrapePDF(meta: Meta): Promise<EngineScrapeResult> {
     }
 
     if (!isPdfBuffer(header.subarray(0, headerBytesRead))) {
+      // Downloaded content isn't a valid PDF
+      // This can happen when a URL ends with .pdf but the server returns HTML
+      // (e.g., a webpage with an embedded PDF viewer)
+      // Remove the PDF flag and let the scraper retry as HTML
       if (meta.pdfPrefetch === undefined) {
         if (!meta.featureFlags.has("pdf")) {
           throw new EngineUnsuccessfulError("pdf");
         } else {
-          throw new PDFAntibotError();
+          throw new RemoveFeatureError(["pdf"]);
         }
       } else {
         throw new PDFPrefetchFailed();
