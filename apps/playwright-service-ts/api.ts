@@ -256,7 +256,9 @@ app.post('/scrape', async (req: Request, res: Response) => {
     page = await requestContext.newPage();
 
     if (headers) {
-      await page.setExtraHTTPHeaders(headers);
+      // Filter out user-agent since it's already set at context level in createContext
+      const { 'user-agent': _, ...headersWithoutUserAgent } = headers;
+      await page.setExtraHTTPHeaders(headersWithoutUserAgent);
     }
 
     const result = await scrapePage(page, url, 'load', wait_after_load, timeout, check_selector);
