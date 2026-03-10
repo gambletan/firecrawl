@@ -6,6 +6,29 @@ import {
   extractBaseHref as _extractBaseHref,
 } from "@mendable/firecrawl-rs";
 
+/**
+ * Checks if a URL has a malformed hostname that looks like an email address
+ * or HTTP basic auth credentials (e.g., https://user@domain.com or
+ * https://user:pass@domain.com). These are often caused by misconfigured
+ * HTML where mailto: links are missing the prefix or credentials are malformed.
+ */
+function hasMalformedCredentials(urlString: string): boolean {
+  try {
+    const url = new URL(urlString);
+    const hostname = url.hostname;
+
+    // Check if hostname contains @ (indicates email or credentials)
+    if (hostname.includes("@")) {
+      // Check if it's a valid mailto link that was resolved incorrectly
+      // or a URL with credentials in the hostname
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 function resolveUrlWithBaseHref(
   href: string,
   baseUrl: string,
@@ -56,7 +79,7 @@ async function extractLinksRust(
   hrefs.forEach(href => {
     href = href.trim();
     const resolvedUrl = resolveUrlWithBaseHref(href, baseUrl, baseHref);
-    if (resolvedUrl) {
+    if (resolvedUrl && !hasMalformedCredentials(resolvedUrl)) {
       links.push(resolvedUrl);
     }
   });
@@ -87,7 +110,7 @@ export async function extractLinks(
     if (href) {
       href = href.trim();
       const resolvedUrl = resolveUrlWithBaseHref(href, baseUrl, baseHref);
-      if (resolvedUrl) {
+      if (resolvedUrl && !hasMalformedCredentials(resolvedUrl)) {
         links.push(resolvedUrl);
       }
     }
