@@ -99,9 +99,9 @@ const initializeBrowser = async () => {
   });
 };
 
-const createContext = async (skipTlsVerification: boolean = false, customHeaders?: Record<string, string>) => {
-  // Use custom user-agent from headers if provided, otherwise generate a random one
-  const userAgent = customHeaders?.['user-agent'] || new UserAgent().toString();
+const createContext = async (skipTlsVerification: boolean = false, customUserAgent?: string) => {
+  // Use custom user-agent if provided, otherwise generate a random one
+  const userAgent = customUserAgent || new UserAgent().toString();
   const viewport = { width: 1280, height: 800 };
 
   const contextOptions: any = {
@@ -252,8 +252,13 @@ app.post('/scrape', async (req: Request, res: Response) => {
   let requestContext: BrowserContext | null = null;
   let page: Page | null = null;
 
+  // Extract user-agent from headers case-insensitively for context creation
+  const customUserAgent = headers 
+    ? Object.entries(headers).find(([key]) => key.toLowerCase() === 'user-agent')?.[1]
+    : undefined;
+
   try {
-    requestContext = await createContext(skip_tls_verification, headers);
+    requestContext = await createContext(skip_tls_verification, customUserAgent);
     page = await requestContext.newPage();
 
     // Filter out user-agent since it's already set at context level
