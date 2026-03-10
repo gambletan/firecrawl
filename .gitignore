@@ -58,3 +58,4 @@ target/
 
 # local files
 _local/
+apps/js-sdk/firecrawl/package-lock.json
