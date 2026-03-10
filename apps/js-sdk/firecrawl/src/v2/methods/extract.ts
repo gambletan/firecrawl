@@ -1,4 +1,4 @@
-import { type ExtractResponse, type ScrapeOptions, type AgentOptions } from "../types";
+import { type ExtractResponse, type ScrapeOptions, type AgentOptions, type WebhookConfig } from "../types";
 import { HttpClient } from "../utils/httpClient";
 import { ensureValidScrapeOptions } from "../utils/validation";
 import { normalizeAxiosError, throwForBadResponse } from "../utils/errorHandler";
@@ -18,6 +18,7 @@ function prepareExtractPayload(args: {
   integration?: string;
   origin?: string;
   agent?: AgentOptions;
+  webhook?: string | WebhookConfig | null;
 }): Record<string, unknown> {
   const body: Record<string, unknown> = {};
   if (args.urls) body.urls = args.urls;
@@ -36,6 +37,9 @@ function prepareExtractPayload(args: {
   if (args.scrapeOptions) {
     ensureValidScrapeOptions(args.scrapeOptions);
     body.scrapeOptions = args.scrapeOptions;
+  }
+  if (args.webhook != null) {
+    body.webhook = args.webhook;
   }
   return body;
 }
