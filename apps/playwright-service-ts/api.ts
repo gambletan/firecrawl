@@ -99,8 +99,9 @@ const initializeBrowser = async () => {
   });
 };
 
-const createContext = async (skipTlsVerification: boolean = false) => {
-  const userAgent = new UserAgent().toString();
+const createContext = async (skipTlsVerification: boolean = false, headers?: Record<string, string>) => {
+  // Use custom user-agent from headers if provided, otherwise generate a random one
+  const userAgent = headers?.['user-agent'] || new UserAgent().toString();
   const viewport = { width: 1280, height: 800 };
 
   const contextOptions: any = {
@@ -252,7 +253,7 @@ app.post('/scrape', async (req: Request, res: Response) => {
   let page: Page | null = null;
 
   try {
-    requestContext = await createContext(skip_tls_verification);
+    requestContext = await createContext(skip_tls_verification, headers);
     page = await requestContext.newPage();
 
     if (headers) {
