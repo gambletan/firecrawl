@@ -384,7 +384,11 @@ export async function crawlStatusController(
 
   return res.status(200).json({
     success: true,
-    status: outputBulkA.status ?? "scraping",
+    status: (outputBulkA.status ?? "scraping") as
+      | "completed"
+      | "scraping"
+      | "cancelled"
+      | "failed",
     completed: outputBulkA.completed ?? 0,
     total: outputBulkA.total ?? 0,
     creditsUsed: outputBulkA.creditsUsed ?? 0,
