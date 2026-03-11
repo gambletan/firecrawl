@@ -120,6 +120,6 @@ export async function extractStatusController(
     costTracking: extract.showCostTracking ? extract.costTracking : undefined,
     sessionIds: extract.sessionIds ? extract.sessionIds : undefined,
     tokensUsed: extract.tokensBilled ? extract.tokensBilled : undefined,
-    creditsUsed: extract.creditsBilled ? extract.creditsBilled : undefined,
+    creditsUsed: extract.creditsBilled ?? 0,
   });
 }
