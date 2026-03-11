@@ -100,8 +100,9 @@ const initializeBrowser = async () => {
 };
 
 const createContext = async (skipTlsVerification: boolean = false, headers?: { [key: string]: string }) => {
-  // Use user-agent from headers if provided, otherwise generate a random one
-  const userAgent = headers?.['user-agent'] ?? new UserAgent().toString();
+  // Use user-agent from headers if provided (case-insensitive), otherwise generate a random one
+  // Check both lowercase and standard casing since HTTP headers are case-insensitive
+  const userAgent = headers?.['user-agent'] ?? headers?.['User-Agent'] ?? new UserAgent().toString();
   const viewport = { width: 1280, height: 800 };
 
   const contextOptions: any = {
@@ -259,8 +260,10 @@ app.post('/scrape', async (req: Request, res: Response) => {
     if (headers) {
       // Filter out user-agent since it's already set at context level
       // Playwright ignores user-agent in setExtraHTTPHeaders if it's set at context level
+      // Handle both lowercase and standard casing since HTTP headers are case-insensitive
       const headersWithoutUserAgent = { ...headers };
       delete headersWithoutUserAgent['user-agent'];
+      delete headersWithoutUserAgent['User-Agent'];
       if (Object.keys(headersWithoutUserAgent).length > 0) {
         await page.setExtraHTTPHeaders(headersWithoutUserAgent);
       }
