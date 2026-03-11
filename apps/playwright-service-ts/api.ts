@@ -264,8 +264,6 @@ app.post('/scrape', async (req: Request, res: Response) => {
         await page.setExtraHTTPHeaders(restHeaders);
       }
     }
-      }
-    }
 
     const result = await scrapePage(page, url, 'load', wait_after_load, timeout, check_selector);
     const pageError = result.status !== 200 ? getError(result.status) : undefined;
